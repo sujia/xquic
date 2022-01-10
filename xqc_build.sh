@@ -55,6 +55,7 @@ if [ x"$platform" == xios ] ; then
                 -DGCOV=OFF
                 -DCMAKE_TOOLCHAIN_FILE=${IOS_CMAKE_TOOLCHAIN}
                 -DENABLE_BITCODE=0
+                -DBUILD_SHARED_LIBS=1
                 -DXQC_NO_SHARED=1"
 
 elif [ x"$platform" == xandroid ] ; then
@@ -76,6 +77,7 @@ elif [ x"$platform" == xandroid ] ; then
                 -DANDROID_NATIVE_API_LEVEL=android-19
                 -DXQC_DISABLE_RENO=OFF
                 -DXQC_ENABLE_BBR2=ON
+                -DBUILD_SHARED_LIBS=1
                 -DXQC_DISABLE_LOG=ON"
 else 
     echo "no support platform"
@@ -119,7 +121,9 @@ do
 
     echo "compiling xquic on $i arch"
     cmake  $configures  $(generate_plat_spec $i ) -DLIBRARY_OUTPUT_PATH=`pwd`/outputs/ ..
-    make -j 4
+    make -j 8 ssl
+    make -j 8 crypto
+    make -j 8 xquic
     if [ $? != 0 ] ; then
         exit 0
     fi
@@ -127,10 +131,11 @@ do
     if [ ! -d  ${artifact_dir}/$i ] ; then
         mkdir -p ${artifact_dir}/$i
     fi
-    cp -f `pwd`/outputs/*.a     ${artifact_dir}/$i/
+    # cp -f `pwd`/outputs/*.a     ${artifact_dir}/$i/
     cp -f `pwd`/outputs/*.so    ${artifact_dir}/$i/
 done
 
+cd ..
 
 make_fat() {
     script="lipo -create"
@@ -158,4 +163,25 @@ if [ x"$platform" == xios ] ; then
 
 fi
 
+strip_android() {
+    UNAMES=$(uname -s)
+    echo $UNAMES
+    if [ "$UNAMES" == "Linux" ]; then
+        export HOST_TAG=linux-x86_64
+    else
+        export HOST_TAG=darwin-x86_64
+    fi
+    echo $HOST_TAG
+    export TOOLCHAIN=$ANDROID_NDK/toolchains/llvm/prebuilt/$HOST_TAG
+    echo "strip $android_strip"
+    export android_strip_32=$TOOLCHAIN/bin/arm-linux-androideabi-strip
+    export android_strip_64=$TOOLCHAIN/bin/aarch64-linux-android-strip
+    $android_strip_64 -s output/arm64-v8a/libxquic.so
+    $android_strip_32 -s output/armeabi-v7a/libxquic.so
+    echo "strip done"
+}
+
+if [ x"$platform" == xandroid ] ; then
+    strip_android
+fi
 
