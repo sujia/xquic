@@ -1,8 +1,10 @@
 # Copyright (c) 2022, Alibaba Group Holding Limited
 #!/bin/sh
 
-android_archs=(armeabi-v7a arm64-v8a)
+# android_archs=(armeabi-v7a arm64-v8a)
 ios_archs=(armv7 arm64 x86_64)
+android_archs=(arm64-v8a)
+# ios_archs=(arm64)
 cur_dir=$(cd "$(dirname "$0")";pwd)
 
 cp -f $cur_dir/cmake/CMakeLists.txt  $cur_dir/CMakeLists.txt
@@ -39,15 +41,15 @@ platform=$(echo $platform | tr A-Z a-z )
 if [ x"$platform" == xios ] ; then 
     if [ x"$IOS_CMAKE_TOOLCHAIN" == x ] ; then
         echo "IOS_CMAKE_TOOLCHAIN MUST be defined"
-        exit 0
+        IOS_CMAKE_TOOLCHAIN=./cmake/ios.toolchain.cmake
+        echo "set IOS_CMAKE_TOOLCHAIN to ${IOS_CMAKE_TOOLCHAIN}"
+        # exit 0
     fi
 
     archs=${ios_archs[@]} 
     configures="-DSSL_TYPE=${ssl_type}
                 -DSSL_PATH=${ssl_path}
                 -DSSL_LIB_PATH=${ssl_lib_path}
-                -DBORINGSSL_PREFIX=bs
-                -DBORINGSSL_PREFIX_SYMBOLS=$cur_dir/bssl_symbols.txt
                 -DDEPLOYMENT_TARGET=10.0
                 -DCMAKE_BUILD_TYPE=Minsizerel
                 -DXQC_ENABLE_TESTING=OFF
@@ -55,7 +57,6 @@ if [ x"$platform" == xios ] ; then
                 -DGCOV=OFF
                 -DCMAKE_TOOLCHAIN_FILE=${IOS_CMAKE_TOOLCHAIN}
                 -DENABLE_BITCODE=0
-                -DBUILD_SHARED_LIBS=1
                 -DXQC_NO_SHARED=1"
 
 elif [ x"$platform" == xandroid ] ; then
@@ -131,8 +132,10 @@ do
     if [ ! -d  ${artifact_dir}/$i ] ; then
         mkdir -p ${artifact_dir}/$i
     fi
-    # cp -f `pwd`/outputs/*.a     ${artifact_dir}/$i/
-    cp -f `pwd`/outputs/*.so    ${artifact_dir}/$i/
+    cp -f `pwd`/outputs/*.a     ${artifact_dir}/$i/
+    if [ x"$platform" == xandroid ] ; then 
+        cp -f `pwd`/outputs/*.so    ${artifact_dir}/$i/
+    fi
 done
 
 cd ..
@@ -176,12 +179,12 @@ strip_android() {
     echo "strip $android_strip"
     export android_strip_32=$TOOLCHAIN/bin/arm-linux-androideabi-strip
     export android_strip_64=$TOOLCHAIN/bin/aarch64-linux-android-strip
-    $android_strip_64 -s output/arm64-v8a/libxquic.so
-    $android_strip_32 -s output/armeabi-v7a/libxquic.so
+    $android_strip_64 -s output/android/arm64-v8a/libxquic.so
+    $android_strip_32 -s output/android/armeabi-v7a/libxquic.so
     echo "strip done"
 }
 
 if [ x"$platform" == xandroid ] ; then
-    strip_android
+     strip_android
 fi
 

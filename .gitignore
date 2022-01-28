@@ -3,3 +3,11 @@ bss/
 *.swp
 
 output/
+
+build_android/
+
+build_ios/
+
+ios/
+
+CMakeLists\.txt
